@@ -91,6 +91,32 @@ type Metrics struct {
 	Items []Metric `json:"items,omitempty"`
 }
 
+// Flatten is a helper method to flatten metrics into map[string]float64.
+func (m Metrics) Flatten(sep string) map[string]float64 {
+	result := make(map[string]float64)
+	for _, item := range m.Items {
+		for _, metricValue := range item.Values {
+			parts := []string{}
+			if item.Namespace != "" {
+				parts = append(parts, item.Namespace)
+			}
+			if item.Subsystem != "" {
+				parts = append(parts, item.Subsystem)
+			}
+			if item.Name != "" {
+				parts = append(parts, item.Name)
+			}
+			if metricValue.Name != "" {
+				parts = append(parts, metricValue.Name)
+			}
+			parts = append(parts, metricValue.Labels...)
+			key := strings.Join(parts, sep)
+			result[key] = metricValue.Value
+		}
+	}
+	return result
+}
+
 // Label ...
 type Label struct {
 	Name  string
@@ -322,4 +348,15 @@ func (e *Eagle) getMetrics(mfs []*dto.MetricFamily) (Metrics, error) {
 	}
 
 	return metrics, nil
+}
+
+// Export Metrics once.
+func (e *Eagle) Export() (Metrics, error) {
+	mfs, err := e.gatherer.Gather()
+	if err != nil {
+		return Metrics{}, err
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.getMetrics(mfs)
 }
