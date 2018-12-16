@@ -69,14 +69,14 @@ func (e *Eagle) Close() error {
 	return nil
 }
 
-// MetricValue ...
+// MetricValue is a concrete value of certain metric.
 type MetricValue struct {
 	Name   string   `json:"name"`
 	Labels []string `json:"labels,omitempty"`
 	Value  float64  `json:"value"`
 }
 
-// Metric ...
+// Metric is a single Prometheus metric that can have many MetricValue.
 type Metric struct {
 	Type      MetricType    `json:"type"`
 	Namespace string        `json:"namespace"`
@@ -86,7 +86,7 @@ type Metric struct {
 	Values    []MetricValue `json:"values,omitempty"`
 }
 
-// Metrics ...
+// Metrics represent collection of aggregated Prometheus metrics.
 type Metrics struct {
 	Items []Metric `json:"items,omitempty"`
 }
@@ -349,7 +349,7 @@ func (e *Eagle) getMetrics(mfs []*dto.MetricFamily) (Metrics, error) {
 	return metrics, nil
 }
 
-// Export Metrics once.
+// Export actual Metrics once.
 func (e *Eagle) Export() (Metrics, error) {
 	mfs, err := e.gatherer.Gather()
 	if err != nil {
