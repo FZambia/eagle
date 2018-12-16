@@ -117,13 +117,12 @@ func (m Metrics) Flatten(sep string) map[string]float64 {
 	return result
 }
 
-// Label ...
-type Label struct {
+type metricLabel struct {
 	Name  string
 	Value string
 }
 
-func getCacheKey(name string, labels []Label, suffix string) string {
+func getCacheKey(name string, labels []metricLabel, suffix string) string {
 	key := name
 	path := joinLabels(labels)
 	if path != "" {
@@ -211,20 +210,20 @@ func (e *Eagle) aggregate() {
 	}
 }
 
-func getLabels(pairs []*dto.LabelPair) []Label {
-	labels := []Label{}
+func getLabels(pairs []*dto.LabelPair) []metricLabel {
+	labels := []metricLabel{}
 	for _, pair := range pairs {
 		val := pair.GetValue()
 		if val == "" {
 			continue
 		}
-		label := Label{pair.GetName(), val}
+		label := metricLabel{pair.GetName(), val}
 		labels = append(labels, label)
 	}
 	return labels
 }
 
-func flattenLabels(labels []Label) []string {
+func flattenLabels(labels []metricLabel) []string {
 	l := []string{}
 	for _, label := range labels {
 		l = append(l, label.Name)
@@ -233,7 +232,7 @@ func flattenLabels(labels []Label) []string {
 	return l
 }
 
-func joinLabels(labels []Label) string {
+func joinLabels(labels []metricLabel) string {
 	chunks := []string{}
 	for _, lbl := range labels {
 		chunks = append(chunks, lbl.Name)
