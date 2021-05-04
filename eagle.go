@@ -260,6 +260,9 @@ func (e *Eagle) getMetrics(mfs []*dto.MetricFamily) (Metrics, error) {
 		name := mf.GetName()
 		parts := strings.SplitN(name, "_", 3)
 		var namespace, subsystem, shortName string
+		if len(parts) < 2 {
+			panic("error:  Metric named '" + name + "' does not fit naming convention")
+		}
 		if len(parts) == 3 {
 			namespace, subsystem, shortName = parts[0], parts[1], parts[2]
 		} else {
