@@ -30,15 +30,16 @@ const (
 // Eagle allows to periodically export Prometheus metrics
 // aggregated over configured time interval.
 type Eagle struct {
-	mu          sync.RWMutex
-	gatherer    prometheus.Gatherer
-	interval    time.Duration
-	sink        chan<- Metrics
-	quantileSep string
-	values      map[string]float64
-	deltas      map[string]float64
-	closeOnce   sync.Once
-	closeCh     chan struct{}
+	mu              sync.RWMutex
+	gatherer        prometheus.Gatherer
+	interval        time.Duration
+	sink            chan<- Metrics
+	quantileSep     string
+	values          map[string]float64
+	deltas          map[string]float64
+	closeOnce       sync.Once
+	closeCh         chan struct{}
+	prefixWhitelist []string
 }
 
 // Config of Eagle instance.
@@ -47,18 +48,22 @@ type Config struct {
 	Interval    time.Duration
 	Sink        chan<- Metrics
 	QuantileSep string
+	// PrefixWhitelist if set will tell Eagle to only gather metrics with given prefixes in name.
+	// By default, all metrics will be collected.
+	PrefixWhitelist []string
 }
 
 // New creates new Eagle.
 func New(c Config) *Eagle {
 	e := &Eagle{
-		gatherer:    c.Gatherer,
-		interval:    c.Interval,
-		sink:        c.Sink,
-		quantileSep: defaultQuantileSep,
-		values:      make(map[string]float64),
-		deltas:      make(map[string]float64),
-		closeCh:     make(chan struct{}),
+		gatherer:        c.Gatherer,
+		interval:        c.Interval,
+		sink:            c.Sink,
+		quantileSep:     defaultQuantileSep,
+		values:          make(map[string]float64),
+		deltas:          make(map[string]float64),
+		closeCh:         make(chan struct{}),
+		prefixWhitelist: c.PrefixWhitelist,
 	}
 	if c.QuantileSep != "" {
 		e.quantileSep = c.QuantileSep
@@ -250,6 +255,18 @@ func joinLabels(labels []metricLabel, sep string) string {
 	return strings.Join(chunks, sep)
 }
 
+func (e *Eagle) isAllowedPrefix(name string) bool {
+	if len(e.prefixWhitelist) == 0 {
+		return true
+	}
+	for _, prefix := range e.prefixWhitelist {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 // Lock must be held outside.
 func (e *Eagle) getMetrics(mfs []*dto.MetricFamily) (Metrics, error) {
 	metrics := Metrics{
@@ -258,10 +275,13 @@ func (e *Eagle) getMetrics(mfs []*dto.MetricFamily) (Metrics, error) {
 	for _, mf := range mfs {
 		typ := mf.GetType()
 		name := mf.GetName()
+		if !e.isAllowedPrefix(name) {
+			continue
+		}
 		parts := strings.SplitN(name, "_", 3)
 		var namespace, subsystem, shortName string
 		if len(parts) < 2 {
-			panic("error:  Metric named '" + name + "' does not fit naming convention")
+			continue
 		}
 		if len(parts) == 3 {
 			namespace, subsystem, shortName = parts[0], parts[1], parts[2]
