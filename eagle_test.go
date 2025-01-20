@@ -15,6 +15,36 @@ func TestFlattenLabels(t *testing.T) {
 	require.Equal(t, 2, len(flatLabels))
 }
 
+func TestMetricNames(t *testing.T) {
+	testCounter1 := prometheus.NewCounter(prometheus.CounterOpts{
+		Namespace: "one",
+		Subsystem: "test",
+		Name:      "test_counter",
+		Help:      "test counter",
+	})
+	testCounter2 := prometheus.NewCounter(prometheus.CounterOpts{
+		Namespace: "two",
+		Name:      "test_counter",
+		Help:      "test counter",
+	})
+	testCounter3 := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "test_counter",
+		Help: "test counter",
+	})
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(testCounter1, testCounter2, testCounter3)
+	e := New(Config{
+		Gatherer: registry,
+	})
+	metrics, err := e.Export()
+	require.NoError(t, err)
+	flattened := metrics.Flatten("_")
+	require.Len(t, flattened, 3)
+	require.Contains(t, flattened, "one_test_test_counter")
+	require.Contains(t, flattened, "two_test_counter")
+	require.Contains(t, flattened, "test_counter")
+}
+
 func TestMetricPrefixes(t *testing.T) {
 	testCounter1 := prometheus.NewCounter(prometheus.CounterOpts{
 		Namespace: "white",

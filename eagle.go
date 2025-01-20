@@ -285,8 +285,10 @@ func (e *Eagle) getMetrics(mfs []*dto.MetricFamily) (Metrics, error) {
 		}
 		if len(parts) == 3 {
 			namespace, subsystem, shortName = parts[0], parts[1], parts[2]
-		} else {
+		} else if len(parts) == 2 {
 			namespace, subsystem = parts[0], parts[1]
+		} else {
+			namespace = parts[0]
 		}
 		metric := Metric{
 			Namespace: namespace,
